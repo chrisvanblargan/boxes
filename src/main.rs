@@ -23,6 +23,37 @@ struct Board {
     physical_size: f32,
 }
 
+#[derive(Debug, PartialEq, Component)]
+struct Points {
+    value: u32,
+}
+
+#[derive(
+    Debug, PartialEq, Copy, Clone, Eq, Hash, Component,
+)]
+struct Position {
+    x: u8,
+    y: u8,
+}
+
+#[derive(Component)]
+struct TileText;
+
+struct FontSpec {
+    family: Handle<Font>,
+}
+
+impl FromWorld for FontSpec {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world
+            .get_resource_mut::<AssetServer>()
+            .unwrap();
+        FontSpec {
+            family: asset_server
+                .load("fonts/FiraSans-Bold.ttf"),
+        }
+    }
+}
 
 impl Board {
     fn new(size: u8) -> Self {
@@ -46,8 +77,13 @@ impl Board {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .init_resource::<FontSpec>()
         .add_startup_system(setup)
         .add_startup_system(spawn_board)
+        .add_startup_system_to_stage(
+            StartupStage::PostStartup,
+            spawn_tiles,
+        )
         .run()
     
 }
@@ -100,4 +136,68 @@ fn spawn_board (mut commands: Commands) {
         })
         .insert(board);
 }
+
+fn spawn_tiles(
+    mut commands: Commands,
+    query_board: Query<&Board>,
+    font_spec: Res<FontSpec>,
+) {
+    let board = query_board.single();
+    let mut rng = rand::thread_rng();
+    let starting_tiles: Vec<(u8, u8)> = (0..board.size)
+        .cartesian_product(0..board.size)
+        .choose_multiple(&mut rng, 2);
+    for (x, y) in starting_tiles.iter() {
+        let pos = Position { x: *x, y: *y};
+        spawn_tile(&mut commands, board, &font_spec, pos);
+    }
+}
         
+fn spawn_tile(
+    commands: &mut Commands,
+    board: &Board,
+    font_spec: &Res<FontSpec>,
+    pos: Position,
+) {
+    commands
+        .spawn_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: MATERIALS.tile,
+                custom_size: Some(Vec2::new(
+                    TILE_SIZE, TILE_SIZE,
+                )),
+                ..Sprite::default()
+            },
+            transform: Transform::from_xyz(
+                board.cell_position_to_physical(pos.x),
+                board.cell_position_to_physical(pos.y),
+                2.0,
+            ),
+            ..Default::default()
+        })
+        .with_children(|child_builder| {
+            child_builder
+                .spawn_bundle(Text2dBundle {
+                    text: Text::from_section(
+                        "2", 
+                        TextStyle { 
+                            font: font_spec.family.clone(), 
+                            font_size: 40.0, 
+                            color: Color::VIOLET, 
+                            ..Default::default()
+                        },
+                    )
+                    .with_alignment(TextAlignment {
+                        vertical: VerticalAlign::Center,
+                        horizontal: HorizontalAlign::Center,
+                    }),
+                    transform: Transform::from_xyz(
+                        0.0, 0.0, 1.0,
+                    ),
+                    ..Default::default()
+                })
+                .insert(TileText);
+        })
+        .insert(Points { value : 2 })
+        .insert(pos);
+}
