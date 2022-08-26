@@ -74,6 +74,27 @@ impl Board {
     }
 }
 
+enum BoardShift {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl TryFrom<&KeyCode> for BoardShift {
+    type Error = &'static str;
+
+    fn try_from(value: &KeyCode) -> Result<Self, Self::Error> {
+        match value {
+            KeyCode::Left => Ok(BoardShift::Left),
+            KeyCode::Right => Ok(BoardShift::Right),
+            KeyCode::Up => Ok(BoardShift::Up),
+            KeyCode::Down => Ok(BoardShift::Down),
+            _ => Err("not a valid board shift key")
+        }
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -85,6 +106,7 @@ fn main() {
             spawn_tiles,
         )
         .add_system(render_tile_points)
+        .add_system(board_shift)
         .run()
     
 }
@@ -217,4 +239,29 @@ fn render_tile_points(
         }
     }
 
+}
+
+fn board_shift (
+    keyboard_input: Res<Input<KeyCode>>
+){
+    let shift_direction =
+        keyboard_input.get_just_pressed().find_map(
+            |key_code| BoardShift::try_from(key_code).ok(),
+        );
+
+    match shift_direction {
+        Some(BoardShift::Left) => {
+            dbg!("left");
+        }
+        Some(BoardShift::Right) => {
+            dbg!("right");
+        }
+        Some(BoardShift::Up) => {
+            dbg!("up");
+        }
+        Some(BoardShift::Down) => {
+            dbg!("down");
+        }
+        None => (),
+    }
 }
