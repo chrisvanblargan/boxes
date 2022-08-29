@@ -5,7 +5,7 @@ use std::{
     ops::Range,
 };
 
-use bevy::{prelude::*, sprite};
+use bevy::{prelude::*, sprite, transform};
 use itertools::Itertools;
 use rand::prelude::*;
 
@@ -107,6 +107,7 @@ fn main() {
         )
         .add_system(render_tile_points)
         .add_system(board_shift)
+        .add_system(render_tiles)
         .run()
     
 }
@@ -310,5 +311,26 @@ fn board_shift (
             dbg!("down");
         }
         None => (),
+    }
+}
+
+fn render_tiles(
+    mut tiles: Query<
+        (Entity, &mut Transform, &Position),
+        Changed<Position>,
+    >,
+    query_board: Query<&Board>,
+) {
+    let board = query_board.single();
+
+     for (entity, mut transform, pos) in tiles.iter_mut() {
+            let x = board.cell_position_to_physical(pos.x);
+            let y = board.cell_position_to_physical(pos.y);
+
+            *transform = Transform::from_xyz(
+                x,
+                y,
+                transform.translation.z,
+            )
     }
 }
