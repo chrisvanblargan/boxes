@@ -242,7 +242,9 @@ fn render_tile_points(
 }
 
 fn board_shift (
-    keyboard_input: Res<Input<KeyCode>>
+    mut commands: Commands,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut tiles: Query<(Entity, &mut Position, &mut Points)>,
 ){
     let shift_direction =
         keyboard_input.get_just_pressed().find_map(
@@ -252,6 +254,51 @@ fn board_shift (
     match shift_direction {
         Some(BoardShift::Left) => {
             dbg!("left");
+            let mut it =
+                tiles.iter_mut().sorted_by(|a, b| {
+                    match Ord::cmp(&a.1.y, &b.1.y) {
+                        Ordering::Equal => {
+                            Ord::cmp(&a.1.x, &b.1.x)
+                        }
+                        ordering => ordering,
+                    }
+                })
+                .peekable();
+
+                let mut column: u8 = 0;
+                while let Some(mut tile) = it.next() {
+                    tile.1.x = column;
+                    match it.peek() {
+                        None => {}
+                        Some(tile_next) => {
+                            if tile.1.y != tile_next.1.y {
+                                //different row, no merge
+                                column = 0;
+                            } else if tile.2.value != tile_next.2.value {
+                                //different value, no merge
+                                column = column + 1;
+                            } else{
+                                //merge
+                            let real_next_tile = it 
+                                .next()
+                                .expect("a peeked tile should always exist when we .next");
+                            tile.2.value = tile.2.value + real_next_tile.2.value;
+                            
+                            commands
+                                .entity(real_next_tile.0)
+                                .despawn_recursive();
+
+                            if let Some(future) = it.peek() {
+                                if tile.1.y != future.1.y {
+                                    column = 0;
+                                } else {
+                                    column = column + 1;
+                                }
+                            }
+                            }
+                        }
+                    }
+                }
         }
         Some(BoardShift::Right) => {
             dbg!("right");
