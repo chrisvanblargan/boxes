@@ -6,6 +6,7 @@ pub struct Materials {
     pub tile: Color,
     pub none: Color,
 }
+
 pub const MATERIALS: Materials = Materials {
     board: Color::rgb(0.7, 0.7, 0.8),
     tile_placeholder: Color::rgb(0.75, 0.75, 0.9),

@@ -14,9 +14,8 @@ impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup_ui)
             .add_system(scoreboard)
-            ;
-            //.add_system(button_interaction_system)
-            //.add_system(button_text_system);
+            .add_system(button_interaction_system)
+            .add_system(button_text_system);
     }
 }
 

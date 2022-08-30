@@ -6,6 +6,7 @@ use std::{
 };
 
 use bevy::prelude::*;
+use bevy_easings::*;
 use itertools::Itertools;
 use rand::prelude::*;
 
@@ -189,10 +190,6 @@ fn main() {
         .add_state(RunState::Playing)
         .add_startup_system(setup)
         .add_startup_system(spawn_board)
-        .add_startup_system_to_stage(
-            StartupStage::PostStartup,
-            spawn_tiles,
-        )
         .add_system_set(
             SystemSet::on_update(RunState::Playing)
             .with_system(render_tile_points)
@@ -200,6 +197,11 @@ fn main() {
             .with_system(render_tiles)
             .with_system(new_tile_handler)
             .with_system(end_game),
+        )
+        .add_system_set(
+            SystemSet::on_enter(RunState::Playing)
+                .with_system(game_reset)
+                .with_system(spawn_tiles),
         )
         .run()
     
@@ -377,6 +379,10 @@ fn board_shift (
                     tile.2.value = tile.2.value + real_next_tile.2.value;
                     game.score += tile.2.value;
 
+                    if game.score_best < game.score {
+                        game.score_best = game.score;
+                    }
+
                     commands
                         .entity(real_next_tile.0)
                         .despawn_recursive();
@@ -502,4 +508,15 @@ fn end_game(
                 run_state.set(RunState::GameOver).unwrap();
             }
     };
+}
+
+fn game_reset(
+    mut commands: Commands,
+    tiles: Query<Entity, With<Position>>,
+    mut game: ResMut<Game>,
+) {
+    for entity in tiles.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+    game.score = 0;
 }
