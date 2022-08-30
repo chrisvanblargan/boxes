@@ -5,7 +5,7 @@ use std::{
     ops::Range,
 };
 
-use bevy::{prelude::*, sprite, transform, ecs::system::Command};
+use bevy::prelude::*;
 use itertools::Itertools;
 use rand::prelude::*;
 
@@ -29,9 +29,7 @@ struct Points {
     value: u32,
 }
 
-#[derive(
-    Debug, PartialEq, Copy, Clone, Eq, Hash, Component,
-)]
+#[derive(Debug, PartialEq, Copy, Clone, Eq, Hash, Component,)]
 struct Position {
     x: u8,
     y: u8,
@@ -188,16 +186,21 @@ fn main() {
         .init_resource::<FontSpec>()
         .init_resource::<Game>()
         .add_event::<NewTileEvent>()
+        .add_state(RunState::Playing)
         .add_startup_system(setup)
         .add_startup_system(spawn_board)
         .add_startup_system_to_stage(
             StartupStage::PostStartup,
             spawn_tiles,
         )
-        .add_system(render_tile_points)
-        .add_system(board_shift)
-        .add_system(render_tiles)
-        .add_system(new_tile_handler)
+        .add_system_set(
+            SystemSet::on_update(RunState::Playing)
+            .with_system(render_tile_points)
+            .with_system(board_shift)
+            .with_system(render_tiles)
+            .with_system(new_tile_handler)
+            .with_system(end_game),
+        )
         .run()
     
 }
@@ -388,7 +391,7 @@ fn board_shift (
                 }
             }
         }
-        dbg!(game.score);
+        //dbg!(game.score);
         tile_writer.send(NewTileEvent);
     }
 }
@@ -453,4 +456,50 @@ fn new_tile_handler(
             );
         }
     }
+}
+
+fn end_game(
+    tiles: Query<(&Position, &Points)>,
+    query_board: Query<&Board>,
+    mut run_state: ResMut<State<RunState>>,
+) {
+    let board = query_board.single();
+
+    if tiles.iter().len() == 16 {
+        let map: HashMap<&Position, &Points> =
+        tiles.iter().collect();
+
+        let neighbor_points =
+        [(-1, 0), (0, 1), (1, 0), (0, -1),];
+        let board_range: Range<i8> = 0..(board.size as i8);
+
+        let has_move = tiles
+            .iter().any(
+                |(Position {x, y}, value)| {
+                neighbor_points
+                    .iter()
+                    .filter_map(|(x2, y2)| {
+                        let new_x = *x as i8 - x2;
+                        let new_y = *y as i8 -y2;
+
+                        if !board_range.contains(&new_x)
+                            || !board_range.contains(&new_y) 
+                        {
+                            return None;
+                        };
+
+                        map.get(&Position {
+                            x: new_x.try_into().unwrap(),
+                            y: new_y.try_into().unwrap(),
+                        })
+                    })
+                    .any(|&v| v == value)
+                },
+            );
+
+            if has_move == false {
+                dbg!("game over");
+                run_state.set(RunState::GameOver).unwrap();
+            }
+    };
 }
