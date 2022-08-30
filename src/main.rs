@@ -184,6 +184,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(GameUiPlugin)
+        .add_plugin(EasingsPlugin)
         .init_resource::<FontSpec>()
         .init_resource::<Game>()
         .add_event::<NewTileEvent>()
@@ -403,6 +404,7 @@ fn board_shift (
 }
 
 fn render_tiles(
+    mut commands: Commands,
     mut tiles: Query<
         (Entity, &mut Transform, &Position),
         Changed<Position>,
@@ -415,11 +417,19 @@ fn render_tiles(
             let x = board.cell_position_to_physical(pos.x);
             let y = board.cell_position_to_physical(pos.y);
 
-            *transform = Transform::from_xyz(
-                x,
-                y,
-                transform.translation.z,
-            )
+            commands.entity(entity).insert(transform.ease_to(
+                Transform::from_xyz(
+                    x,
+                    y,
+                    transform.translation.z,
+                ),
+                EaseFunction::QuadraticInOut,
+                EasingType::Once {
+                    duration: std::time::Duration::from_millis(
+                        100,
+                    ),
+                },
+            ));
     }
 }
 
