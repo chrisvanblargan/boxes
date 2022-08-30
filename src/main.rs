@@ -9,8 +9,9 @@ use bevy::{prelude::*, sprite, transform, ecs::system::Command};
 use itertools::Itertools;
 use rand::prelude::*;
 
-//mod ui;
-//use ui::*;
+mod ui;
+use ui::*;
+
 mod colors;
 use colors::*;
 
@@ -137,19 +138,19 @@ impl BoardShift {
         match self {
             BoardShift::Left => {
                 position.x = index;
-                dbg!("left");
+                //dbg!("left");
             },
             BoardShift::Right => {
                 position.x = board_size - 1 - index;
-                dbg!("right");
+                //dbg!("right");
             },            
             BoardShift::Up => {
                 position.y = board_size - 1 - index;
-                dbg!("up");
+                //dbg!("up");
             },
             BoardShift::Down => {
                 position.y = index;
-                dbg!("down");
+                //dbg!("down");
             },
         }
     }
@@ -174,10 +175,18 @@ struct Game {
     score_best: u32,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum RunState {
+    Playing,
+    GameOver,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(GameUiPlugin)
         .init_resource::<FontSpec>()
+        .init_resource::<Game>()
         .add_event::<NewTileEvent>()
         .add_startup_system(setup)
         .add_startup_system(spawn_board)
@@ -329,6 +338,7 @@ fn board_shift (
     mut tiles: Query<(Entity, &mut Position, &mut Points)>,
     query_board: Query<&Board>,
     mut tile_writer: EventWriter<NewTileEvent>,
+    mut game: ResMut<Game>,
 ) {
     let board = query_board.single();
     let shift_direction =
@@ -362,7 +372,8 @@ fn board_shift (
                         .next()
                         .expect("a peeked tile should always exist when we .next");
                     tile.2.value = tile.2.value + real_next_tile.2.value;
-                    
+                    game.score += tile.2.value;
+
                     commands
                         .entity(real_next_tile.0)
                         .despawn_recursive();
@@ -377,6 +388,7 @@ fn board_shift (
                 }
             }
         }
+        dbg!(game.score);
         tile_writer.send(NewTileEvent);
     }
 }

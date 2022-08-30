@@ -1,4 +1,3 @@
-
 use bevy::prelude::Color;
 
 pub struct Materials {
