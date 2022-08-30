@@ -5,7 +5,7 @@ use std::{
     ops::Range,
 };
 
-use bevy::{prelude::*, sprite, transform};
+use bevy::{prelude::*, sprite, transform, ecs::system::Command};
 use itertools::Itertools;
 use rand::prelude::*;
 
@@ -166,10 +166,19 @@ impl BoardShift {
     }
 }
 
+struct NewTileEvent;
+
+#[derive(Default)]
+struct Game {
+    score: u32,
+    score_best: u32,
+}
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .init_resource::<FontSpec>()
+        .add_event::<NewTileEvent>()
         .add_startup_system(setup)
         .add_startup_system(spawn_board)
         .add_startup_system_to_stage(
@@ -179,6 +188,7 @@ fn main() {
         .add_system(render_tile_points)
         .add_system(board_shift)
         .add_system(render_tiles)
+        .add_system(new_tile_handler)
         .run()
     
 }
@@ -274,7 +284,7 @@ fn spawn_tile(
             child_builder
                 .spawn_bundle(Text2dBundle {
                     text: Text::from_section(
-                        "4", 
+                        "2", 
                         TextStyle { 
                             font: font_spec.family.clone(), 
                             font_size: 40.0, 
@@ -318,7 +328,8 @@ fn board_shift (
     keyboard_input: Res<Input<KeyCode>>,
     mut tiles: Query<(Entity, &mut Position, &mut Points)>,
     query_board: Query<&Board>,
-){
+    mut tile_writer: EventWriter<NewTileEvent>,
+) {
     let board = query_board.single();
     let shift_direction =
         keyboard_input.get_just_pressed().find_map(
@@ -366,6 +377,7 @@ fn board_shift (
                 }
             }
         }
+        tile_writer.send(NewTileEvent);
     }
 }
 
@@ -387,5 +399,46 @@ fn render_tiles(
                 y,
                 transform.translation.z,
             )
+    }
+}
+
+fn new_tile_handler(
+    mut tile_reader: EventReader<NewTileEvent>,
+    mut commands: Commands,
+    query_board: Query<&Board>,
+    tiles: Query<&Position>,
+    font_spec: Res<FontSpec>
+) {
+    let board = query_board.single();
+
+    for _event in tile_reader.iter() {
+        //insert new tile
+        let mut rng = rand::thread_rng();
+        let possible_position: Option<Position> = (
+            0..board.size)
+            .cartesian_product(0..board.size)
+            .filter_map(|tile_pos| {
+                let new_pos = Position {
+                    x: tile_pos.0,
+                    y: tile_pos.1,
+                };
+                match tiles
+                    .iter()
+                    .find(|&&pos| pos == new_pos)
+                {
+                    Some(_) => None,
+                    None => Some(new_pos),
+                }
+            })
+            .choose(&mut rng);
+
+        if let Some(pos) = possible_position {
+            spawn_tile(
+                &mut commands,
+                board,
+                &font_spec,
+                pos,
+            );
+        }
     }
 }
